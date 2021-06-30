@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stunnel
+  namespace: {{ .Values.namespace }}
+data:
+  stunnel.conf: |-
+    foreground = yes
+
+    [ldap]
+    client = yes
+    accept = 127.0.0.1:1636
+    connect = ldap.google.com:636
+    cert = /etc/stunnel/google.key
+    key = /etc/stunnel/google.crt

@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openvpn
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: openvpn
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openvpn
+  template:
+    metadata:
+      labels:
+        app: openvpn
+    spec:
+      containers:
+        - name: stunnel
+          image: '{{ .Values.images.stunnel }}'
+          command: [ "stunnel" ]
+          args: [ "/etc/stunnel/stunnel.conf" ]
+          ports:
+            - containerPort: 1636
+
+          volumeMounts:
+            # stunnel configuration
+            - mountPath: /etc/stunnel/stunnel.conf
+              subPath: stunnel.conf
+              name: stunnel
+
+            # Key/Certificate for connecting to Google Secure LDAP
+            - mountPath: /etc/stunnel/google.crt
+              subPath: google.key
+              name: google-ldap
+            - mountPath: /etc/stunnel/google.key
+              subPath: google.crt
+              name: google-ldap
+
+        - name: openvpn
+          image: '{{ .Values.images.openvpn }}'
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 1194
+          command:
+            - /bin/sh
+            - '-c'
+            - |
+              mkdir -p /dev/net && \
+              mknod /dev/net/tun c 10 200 && \
+              iptables -t nat -A POSTROUTING -s {{ .Values.network }}/{{ .Values.subnet }} -o eth0 -j MASQUERADE && \
+              openvpn --config /etc/openvpn/config/openvpn.conf
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /etc/openvpn/config
+              name: openvpn
+              readOnly: false
+            - mountPath: /etc/openvpn/certs
+              name: openvpn-certs
+              readOnly: false
+            - mountPath: /etc/openvpn/auth-ldap.conf
+              subPath: auth-ldap.conf
+              name: openvpn
+      volumes:
+        - name: stunnel
+          configMap:
+            name: stunnel
+            defaultMode: 0775
+
+        - name: openvpn
+          configMap:
+            name: openvpn
+            defaultMode: 0775
+
+        - name: google-ldap
+          secret:
+            secretName: google-ldap
+            defaultMode: 0600
+            items:
+              - key: certificate
+                path: google.crt
+              - key: key
+                path: google.key
+
+        - name: openvpn-certs
+          secret:
+            secretName: openvpn-certs
+            defaultMode: 0600
+            items:
+              - key: "server.key"
+                path: "pki/private/server.key"
+              - key: "ca.crt"
+                path: "pki/ca.crt"
+              - key: "server.crt"
+                path: "pki/issued/server.crt"
+              - key: "dh.pem"
+                path: "pki/dh.pem"

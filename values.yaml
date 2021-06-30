@@ -1,0 +1,16 @@
+namespace: openvpn
+
+domain: mydomain
+tld: com
+
+network: '10.0.1.0'
+subnet: '255.255.255.0'
+
+push:
+  - 10.0.0.0 255.255.255.0 # nodes
+  - 10.0.2.0 255.255.254.0 # services
+  - 10.0.4.0 255.255.252.0 # pods
+
+images:
+  stunnel: dweomer/stunnel:latest
+  openvpn: leanobjects/openvpn:latest

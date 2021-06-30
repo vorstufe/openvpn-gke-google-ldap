@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openvpn
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: openvpn
+data:
+  openvpn.conf: |-
+    # https://openvpn.net/community-resources/reference-manual-for-openvpn-2-4/
+    server {{ .Values.network }} {{ .Values.subnet }}
+    proto udp4
+    port 1194
+    verb 0
+
+    dev tun
+    topology subnet
+    keepalive 10 30
+
+    ca   /etc/openvpn/certs/pki/ca.crt
+    cert /etc/openvpn/certs/pki/issued/server.crt
+    key  /etc/openvpn/certs/pki/private/server.key
+    dh   /etc/openvpn/certs/pki/dh.pem
+
+    persist-tun
+    persist-key
+    duplicate-cn
+
+    route-gateway dhcp
+    plugin /usr/lib/openvpn/plugins/openvpn-auth-ldap.so /etc/openvpn/auth-ldap.conf
+{{ range .Values.push }}
+    push "route {{ . }}"
+{{- end }}
+
+  auth-ldap.conf: |-
+    # https://support.google.com/a/answer/9089736
+    <LDAP>
+      # Stunnel sidecar with TLS connection to Google Workspace LDAP
+      URL ldap://localhost:1636
+      Timeout 10
+      TLSEnable false
+    </LDAP>
+    <Authorization>
+      BaseDN "dc={{ .Values.domain }},dc={{ .Values.tld }}"
+      SearchFilter "(uid=%u)"
+      RequireGroup false
+    </Authorization>
