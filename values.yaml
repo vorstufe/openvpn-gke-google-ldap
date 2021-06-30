@@ -13,4 +13,4 @@ push:
 
 images:
   stunnel: dweomer/stunnel:latest
-  openvpn: leanobjects/openvpn:latest
+  openvpn: ghcr.io/vorstufe/openvpn-gke-google-ldap:main
